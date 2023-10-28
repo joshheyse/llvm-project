@@ -30,13 +30,17 @@ if(GRPC_INSTALL_PATH)
     add_library(grpc++_reflection ALIAS gRPC::grpc++_reflection)
   endif()
 
+  message(USE_HOST_GRPC_PROTOC="${USE_HOST_GRPC_PROTOC}")
   if(USE_HOST_GRPC_PROTOC)
+    message()
     find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
     find_program(PROTOC protoc)
   else()
     set(GRPC_CPP_PLUGIN $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
     set(PROTOC ${Protobuf_PROTOC_EXECUTABLE})
   endif()
+  message(PROTOC="${PROTOC}")
+  message(GRPC_CPP_PLUGIN="${GRPC_CPP_PLUGIN}")
 else()
   # This setup requires system-installed gRPC and Protobuf. We always link
   # dynamically in this mode. While the static libraries are usually installed,
