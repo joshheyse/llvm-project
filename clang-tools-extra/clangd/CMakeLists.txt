@@ -5,22 +5,29 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(support)
 
 # Configure the Features.inc file.
-if (NOT DEFINED CLANGD_BUILD_XPC)
+if(NOT DEFINED CLANGD_BUILD_XPC)
   if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(CLANGD_BUILD_XPC_DEFAULT ON)
-  else ()
+  else()
     set(CLANGD_BUILD_XPC_DEFAULT OFF)
-  endif ()
+  endif()
 
   llvm_canonicalize_cmake_booleans(CLANGD_BUILD_XPC_DEFAULT)
 
-  set(CLANGD_BUILD_XPC ${CLANGD_BUILD_XPC_DEFAULT} CACHE BOOL "Build XPC Support For Clangd." FORCE)
+  set(CLANGD_BUILD_XPC
+      ${CLANGD_BUILD_XPC_DEFAULT}
+      CACHE BOOL "Build XPC Support For Clangd." FORCE)
   unset(CLANGD_BUILD_XPC_DEFAULT)
-endif ()
+endif()
 
-# This involves generating and compiling large source files, which can run into toolchain limitations.
-option(CLANGD_DECISION_FOREST "Enable decision forest model for ranking code completion items" ON)
-option(CLANGD_MALLOC_TRIM "Call malloc_trim(3) periodically in Clangd. (only takes effect when using glibc)" ON)
+# This involves generating and compiling large source files, which can run into
+# toolchain limitations.
+option(CLANGD_DECISION_FOREST
+       "Enable decision forest model for ranking code completion items" ON)
+option(
+  CLANGD_MALLOC_TRIM
+  "Call malloc_trim(3) periodically in Clangd. (only takes effect when using glibc)"
+  ON)
 # -DCLANG_TIDY_CHECKS=Off avoids a dependency on clang-tidy, reducing rebuilds.
 option(CLANGD_TIDY_CHECKS "Link all clang-tidy checks into clangd" ON)
 
@@ -31,37 +38,37 @@ llvm_canonicalize_cmake_booleans(
   CLANGD_MALLOC_TRIM
   CLANGD_TIDY_CHECKS
   LLVM_ENABLE_ZLIB
-  CLANGD_DECISION_FOREST
-)
+  CLANGD_DECISION_FOREST)
 
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/Features.inc.in
-  ${CMAKE_CURRENT_BINARY_DIR}/Features.inc
-)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Features.inc.in
+               ${CMAKE_CURRENT_BINARY_DIR}/Features.inc)
 
-set(LLVM_LINK_COMPONENTS
-  Support
-  AllTargetsInfos
-  FrontendOpenMP
-  Option
-  TargetParser
-  )
+set(LLVM_LINK_COMPONENTS Support AllTargetsInfos FrontendOpenMP Option
+                         TargetParser)
 
 set(COMPLETIONMODEL_SOURCES)
 if(CLANGD_DECISION_FOREST)
   include(${CMAKE_CURRENT_SOURCE_DIR}/quality/CompletionModel.cmake)
-  gen_decision_forest(${CMAKE_CURRENT_SOURCE_DIR}/quality/model CompletionModel clang::clangd::Example)
-  list(APPEND COMPLETIONMODEL_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/CompletionModel.cpp)
+  gen_decision_forest(${CMAKE_CURRENT_SOURCE_DIR}/quality/model CompletionModel
+                      clang::clangd::Example)
+  list(APPEND COMPLETIONMODEL_SOURCES
+       ${CMAKE_CURRENT_BINARY_DIR}/CompletionModel.cpp)
 endif()
 
 if(MSVC AND NOT CLANG_CL)
- set_source_files_properties(CompileCommands.cpp PROPERTIES COMPILE_FLAGS -wd4130) # disables C4130: logical operation on address of string constant
+  set_source_files_properties(
+    CompileCommands.cpp PROPERTIES COMPILE_FLAGS -wd4130) # disables C4130:
+                                                          # logical operation on
+                                                          # address of string
+                                                          # constant
 endif()
 
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}/../clang-tidy")
-include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/../include-cleaner/include")
+include_directories(BEFORE
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../include-cleaner/include")
 
-add_clang_library(clangDaemon
+add_clang_library(
+  clangDaemon
   AST.cpp
   ASTSignals.cpp
   ClangdLSPServer.cpp
@@ -113,7 +120,6 @@ add_clang_library(clangDaemon
   URI.cpp
   XRefs.cpp
   ${COMPLETIONMODEL_SOURCES}
-
   index/Background.cpp
   index/BackgroundIndexLoader.cpp
   index/BackgroundIndexStorage.cpp
@@ -136,27 +142,23 @@ add_clang_library(clangDaemon
   index/SymbolLocation.cpp
   index/SymbolOrigin.cpp
   index/YAMLSerialization.cpp
-
   index/dex/Dex.cpp
   index/dex/Iterator.cpp
   index/dex/PostingList.cpp
   index/dex/Trigram.cpp
-
   refactor/InsertionPoint.cpp
   refactor/Rename.cpp
   refactor/Tweak.cpp
-
   DEPENDS
   omp_gen
-  ClangDriverOptions
-  )
+  ClangDriverOptions)
 
 # Include generated CompletionModel headers.
-target_include_directories(clangDaemon PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-)
+target_include_directories(
+  clangDaemon PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-clang_target_link_libraries(clangDaemon
+clang_target_link_libraries(
+  clangDaemon
   PRIVATE
   clangAST
   clangASTMatchers
@@ -172,39 +174,31 @@ clang_target_link_libraries(clangDaemon
   clangToolingCore
   clangToolingInclusions
   clangToolingInclusionsStdlib
-  clangToolingSyntax
-  )
+  clangToolingSyntax)
 
-target_link_libraries(clangDaemon
-  PRIVATE
-  ${LLVM_PTHREAD_LIB}
-
-  clangIncludeCleaner
-  clangPseudo
-  clangTidy
-
-  clangdSupport
-  )
+target_link_libraries(
+  clangDaemon PRIVATE ${LLVM_PTHREAD_LIB} clangIncludeCleaner clangPseudo
+                      clangTidy clangdSupport)
 if(CLANGD_TIDY_CHECKS)
   target_link_libraries(clangDaemon PRIVATE ${ALL_CLANG_TIDY_CHECKS})
 endif()
 
 add_subdirectory(refactor/tweaks)
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   # FIXME: Make fuzzer not use linux-specific APIs, build it everywhere.
   add_subdirectory(fuzzer)
 endif()
 add_subdirectory(tool)
 add_subdirectory(indexer)
 
-if (LLVM_INCLUDE_BENCHMARKS)
+if(LLVM_INCLUDE_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
-if ( CLANGD_BUILD_XPC )
+if(CLANGD_BUILD_XPC)
   add_subdirectory(xpc)
-endif ()
+endif()
 
-if (CLANGD_ENABLE_REMOTE)
+if(CLANGD_ENABLE_REMOTE)
   include(AddGRPC)
 endif()
 
@@ -213,9 +207,14 @@ if(CLANG_INCLUDE_TESTS)
   add_subdirectory(unittests)
 endif()
 
-# FIXME(kirillbobyrev): Document this in the LLVM docs once remote index is stable.
-option(CLANGD_ENABLE_REMOTE "Use gRPC library to enable remote index support for Clangd" OFF)
-set(GRPC_INSTALL_PATH "" CACHE PATH "Path to gRPC library manual installation.")
-
+# FIXME(kirillbobyrev): Document this in the LLVM docs once remote index is
+# stable.
+option(CLANGD_ENABLE_REMOTE
+       "Use gRPC library to enable remote index support for Clangd" OFF)
+set(GRPC_INSTALL_PATH
+    ""
+    CACHE PATH "Path to gRPC library manual installation.")
+option(USE_HOST_GRPC_PROTOC
+       "Use the host system protoc during cross compilation" OFF)
 add_subdirectory(index/remote)
 add_subdirectory(index/dex/dexp)
