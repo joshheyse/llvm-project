@@ -32,7 +32,6 @@ if(GRPC_INSTALL_PATH)
 
   message(USE_HOST_GRPC_PROTOC="${USE_HOST_GRPC_PROTOC}")
   if(USE_HOST_GRPC_PROTOC)
-    message()
     find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
     find_program(PROTOC protoc)
   else()
